@@ -80,34 +80,41 @@ const store = new Vuex.Store({
     },
     mutations: {// 修改数据
         INIT_DATA(state) {// 初始化数据
-            var items=state.sessions,length=state.sessions.length;
-            var datas=localStorage.getItem('vue-chat-user');
-            
+
+            var datas = JSON.parse(localStorage.getItem('vue-chat-user'));
             if (datas) {
-                for(var i=0;i<length;i++){
-                    var currentId=items[i].id
-                    var itemMessage = localStorage.getItem(currentId+'-id-content');
-                    for(var j=0;j<datas.length;j++){
-    
-                        if(datas[j].id==items[i].id){
-                            datas[j].messages=itemMessage
-                        }
-                    }
+                for (var i = 0; i < datas.length; i++) {
+
+                    var currentId = datas[i].id
+                    var itemMessage = JSON.parse(localStorage.getItem(currentId + '-id-content'));
+                    datas[i].messages = itemMessage
+
                 }
-                state.sessions = JSON.parse(datas);
+                let data = JSON.stringify(datas)  
+                state.sessions = JSON.parse(data);
+                state.currentSessionId=JSON.parse(localStorage.getItem("currentId"))
+
             }
         },
 
         // 发送消息
         SEND_MESSAGE({ sessions, currentSessionId }, content) {
             let session = sessions.find(item => item.id === currentSessionId);
-            let isShow = true;
-            let curList = sessions[0];// 最上面的也就是我要发送消息的
-            if (sessions) {
-                for (var i = 0; i < sessions.length; i++) {
-                    if (sessions[i].id == curList.id) {
-                        let currentMes = sessions[i].messages//当前id聊天记录
-                        let precurrentDate = currentMes[currentMes.length - 1].date || 0
+            var isShow = true;
+            let localMessage = JSON.parse(localStorage.getItem("vue-chat-user"));//本地缓存数据
+            // let curList = sessions[0];// 最上面的也就是我要发送消息的
+            if (localMessage) {
+                for (var i = 0; i < localMessage.length; i++) {
+                    if (localMessage[i].id == currentSessionId) {
+
+                        let currentMes = JSON.parse(localStorage.getItem(currentSessionId + "-id-content"))
+
+                        let precurrentDate;
+                        if (currentMes.length <= 0) {
+                            precurrentDate = 0
+                        } else {
+                            precurrentDate = currentMes[currentMes.length - 1].date
+                        }
                         if (new Date() - new Date(precurrentDate) < 60000) {//时间差小于1分
                             // 最后一条数据的isShow=false
                             isShow = false;
@@ -115,7 +122,7 @@ const store = new Vuex.Store({
                     }
                 }
             }
-            if(content.replace(/(^\s*)|(\s*$)/g, "")!=""){
+            if (content.replace(/(^\s*)|(\s*$)/g, "") != "") {
                 session.messages.push({
                     content: content,
                     date: new Date(),
@@ -130,6 +137,7 @@ const store = new Vuex.Store({
             let session = state.sessions.find(item => item.id == id);
             session.unRead = false
             session.count = "";
+            // localStorage.setItem("currentSessionId",JSON.stringify(id))
         },
         // 搜索
         SET_FILTER_KEY(state, value) {
@@ -147,33 +155,40 @@ const store = new Vuex.Store({
             var currentList = state.sessions[index]
             state.sessions.remove(currentList);
             state.sessions.unshift(currentList);
-            // localStorage.setItem('vue-chat-session', JSON.stringify(state.sessions));
+
         },
         // 接受新消息
         NEW_INFO({ sessions, currentSessionId }, id) {
             let session = sessions.find(item => item.id == id);//当前的会话信息
             let isShow = true;//时间显示
-
-            if (sessions) {
-                for (var i = 0; i < sessions.length; i++) {
-                    if (sessions[i].id == id) {
-                        let currentMes = sessions[i].messages//当前id聊天记录
+            let localMessage = JSON.parse(localStorage.getItem("vue-chat-user"));//本地缓存数据的
+            if (localMessage) {
+                for (var i = 0; i < localMessage.length; i++) {
+                    if (localMessage[i].id == id) {
+                        let currentMes = JSON.parse(localStorage.getItem(currentSessionId + "-id-content"))
+                        console.log(currentMes)
                         let precurrentDate;
-                        if(currentMes.length<=0){
-                            precurrentDate=0
+                        if(currentMes){
+                            if (currentMes.length <= 0) {
+                                precurrentDate = 0
+                            } else {
+                                precurrentDate = currentMes[currentMes.length - 1].date
+                            }
+                            if (new Date() - new Date(precurrentDate) < 60000) {//时间差小于1分
+                                // 最后一条数据的isShow=false
+                                isShow = false;
+                            }
                         }else{
-                            precurrentDate = currentMes[currentMes.length - 1].date
+                            precurrentDate = 0
                         }
-                        if (new Date() - new Date(precurrentDate) < 60000) {//时间差小于1分
-                            // 最后一条数据的isShow=false
-                            isShow = false;
-                        }
+                        
+                       
                     }
                 }
             }
 
 
- 
+
             session.messages.push({
                 content: "你好，大家好！",
                 date: new Date(),
@@ -214,12 +229,14 @@ const store = new Vuex.Store({
     }
 });
 store.watch(
-    (state) => state.sessions,
-    (val,vuer) => {
+    (state) => state,
+    (val) => {
+        var currentId=val.currentSessionId
+        localStorage.setItem("currentId",JSON.parse(currentId))//保存当前的会话窗口的id
+        var val=val.sessions
         let userId = [];// 保存存放着id的属性的对象  保存用户的聊天记录
-   
-        for (var i = 0; i < vuer.length; i++) {
-            let list = vuer[i];
+        for (var i = 0; i < val.length; i++) {
+            let list = val[i];
             let userListId = {};
             localStorage.setItem(list.id + '-id-content', JSON.stringify(list.messages));// 把每个含有id的对象聊天内容保存本地
             for (var key in list) {
